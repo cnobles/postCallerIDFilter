@@ -32,7 +32,7 @@ arguments <- setArguments()
 print(arguments)
 
 dataDir <- arguments$d
-codeDir <- arguments$c
+codeDir <- arguments$codeDir
 specimen <- arguments$s
 
 source(paste0(codeDir, "/utilities.R"))

@@ -40,7 +40,7 @@ arguments <- setArguments()
 print(arguments)
 
 primeDir <- arguments$d
-codeDir <- arguments$c
+codeDir <- arguments$codeDir
 
 if(!"postCallerIDData" %in% list.files(primeDir)){
   system("mkdir postCallerIDData")
@@ -52,6 +52,10 @@ setwd(paste0(primeDir, "/postCallerIDData"))
 source(paste0(codeDir, "/utilities.R"))
 sampleInfo <- read.delim(paste0(primeDir, "/sampleInfo.tsv"))
 sampleInfo$specimen <- sapply(strsplit(sampleInfo$alias, "-"), "[[", 1)
+
+message("Loading the following specimens:")
+print(unique(sampleInfo$specimen))
+
 allSites <- lapply(sampleInfo$alias, 
                    load_intSiteCaller_data, 
                    dataType = "allSites", 
@@ -62,6 +66,9 @@ primerIDs <- lapply(sampleInfo$alias,
                     dataDir = primeDir)
 
 names(allSites) <- names(primerIDs) <- sampleInfo$alias
+
+if(exists("allSites")){message("Unique sites loaded.")}
+if(exists("primerIDs")){message("PrimerIDs loaded.")}
 
 #Join primerIDs to read alignments
 allSites <- do.call(c, lapply(1:length(allSites), function(i){
@@ -80,6 +87,8 @@ allSites$specimen <- sampleInfo[
 allSites$primerID <- primerIDs[names(allSites)]
 
 mcols(allSites) <- mcols(allSites)[, c("specimen", "sampleName", "primerID")]
+
+message("PrimerIDs merged to alignment information.")
 
 #Split up data by specimen, identify crossover primerIDs
 spSites <- split(allSites, allSites$specimen)
