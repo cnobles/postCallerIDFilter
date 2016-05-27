@@ -20,38 +20,18 @@ load_intSiteCaller_data <- function(sampleName, dataType, dataDir){
   }
 }
 
-graphOverlaps <- function(sites, gap){
-  overlaps <- findOverlaps(sites, maxgap = gap)
-  edgelist <- matrix(c(queryHits(overlaps), subjectHits(overlaps)), ncol = 2)
-  graph <- graph.edgelist(edgelist, directed = FALSE)
-  graph
-}
-
-generate_posID <- function(sites=NULL, seqnames=NULL, strand=NULL, start=NULL, end=NULL, ...){
-  if(length(sites) != 0){
-    if(class(sites) == "GRanges"){
-      chr <- as.character(seqnames(sites))
-      strand <- as.vector(strand(sites))
-      pos <- ifelse(strand == "+", start(sites), end(sites))
-      posID <- paste0(chr, strand, pos)
-    }else{
-      message("Sites provided not a GRanges object, please use alternative inputs.")
-      stop()
-    }
-  }else{
-    if(length(seqnames) != 0 & length(strand) != 0 & length(start) != 0 & length(end) != 0){
-      chr <- as.character(seqnames)
-      strand <- as.vector(strand)
-      start <- as.integer(start)
-      end <- as.integer(end)
-      sites.df <- data.frame(chr, strand, start, end)
-      sites.df$pos <- ifelse(strand == "+", sites.df$start, sites.df$end)
-      posID <- paste0(sites.df$chr, sites.df$strand, sites.df$pos)
-    }else{
-      message("Please supply seqnames, strand, start, and end info.")
-      stop()
-    }}
-  return(posID)
+group_sites <- function(sites){
+  sites_flank <- flank(sites, -1, start = TRUE)
+  sites_red <- reduce(sites_flank, min.gapwidth = 5L, with.revmap = TRUE)
+  revmap <- sites_red$revmap
+  groups <- as.character(Rle(
+    values = sapply(revmap, "[", 1), 
+    lengths = sapply(revmap, length)
+  ))
+  order <- unlist(revmap)
+  sites <- sites[order]
+  sites$clusID <- paste(sites$primerID, groups, sep = ":")
+  sites
 }
 
 bsub <- function(queue="normal", cpus=1, maxmem=NULL, wait=NULL, jobName=NULL, logFile=NULL, command=NULL){
@@ -85,10 +65,9 @@ assign_sampleName_by_primerID <- function(sites){
   )
   two_or_more <- two_or_more[sapply(two_or_more, length) >= 2]
   sites_to_correct <- sites[sites$primerID %in% names(two_or_more)]
-  cluster_graph <- graphOverlaps(
-    flank(sites_to_correct, -1, start = TRUE),
-    gap = 5L
-  )
+  
+  sites_to_correct <- group_sites(sites_to_correct)
+  
   sites_to_correct$clusID <- paste(
     as.character(sites_to_correct$primerID),
     clusters(cluster_graph)$membership,
