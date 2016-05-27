@@ -102,7 +102,7 @@ lapply(1:length(spSites), function(i){
 
 lapply(names(spSites), function(specimen){
   bsub(jobName=sprintf("BushmanPostCallerProcessing_%s", specimen),
-       maxmem=120000,
+       maxmem=64000,
        logFile=paste0(specimen, "_output.txt"),
        command=paste0("Rscript ", codeDir, "/correct_read_assignment.R ",
                       "-d ", primeDir, "/postCallerIDData ",
