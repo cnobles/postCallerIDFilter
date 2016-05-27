@@ -65,47 +65,52 @@ assign_sampleName_by_primerID <- function(sites){
   )
   two_or_more <- two_or_more[sapply(two_or_more, length) >= 2]
   sites_to_correct <- sites[sites$primerID %in% names(two_or_more)]
+  if(length(sites_to_correct) > 0){
+    sites_to_correct <- group_sites(sites_to_correct)
   
-  sites_to_correct <- group_sites(sites_to_correct)
+    sites_to_correct$clusID <- paste(
+      as.character(sites_to_correct$primerID),
+      clusters(cluster_graph)$membership,
+      sep = ":"
+    )
+    sites_to_correct <- split(sites_to_correct, sites_to_correct$clusID)
+    sites_to_correct <- sites_to_correct[sapply(sites_to_correct, function(x){
+      length(unique(x$sampleName)) >= 2
+    })]
   
-  sites_to_correct$clusID <- paste(
-    as.character(sites_to_correct$primerID),
-    clusters(cluster_graph)$membership,
-    sep = ":"
-  )
-  sites_to_correct <- split(sites_to_correct, sites_to_correct$clusID)
-  sites_to_correct <- sites_to_correct[sapply(sites_to_correct, function(x){
-    length(unique(x$sampleName)) >= 2
-  })]
+    corrected_reads <- lapply(
+      sites_to_correct,
+      function(sites_matching_primerID){
+        sampleName_freq <- table(sites_matching_primerID$sampleName)
+        origin <- names(sampleName_freq[sampleName_freq == max(sampleName_freq)])
+        modified_reads <- sites_matching_primerID[
+          !sites_matching_primerID$sampleName == origin
+          ]
+        modified_reads$sampleName <- origin
+        modified_reads
+      }
+    )
   
-  corrected_reads <- lapply(
-    sites_to_correct,
-    function(sites_matching_primerID){
-      sampleName_freq <- table(sites_matching_primerID$sampleName)
-      origin <- names(sampleName_freq[sampleName_freq == max(sampleName_freq)])
-      modified_reads <- sites_matching_primerID[
-        !sites_matching_primerID$sampleName == origin
-        ]
-      modified_reads$sampleName <- origin
-      modified_reads
-    }
-  )
+    reassignment_frame <- data.frame(
+      row.names = unlist(sapply(1:length(corrected_reads), function(i){
+        names(corrected_reads[[i]])
+      })),
+      "reassign_sampleName" = unlist(sapply(1:length(corrected_reads), function(i){
+        corrected_reads[[i]]$sampleName
+      }))
+    )
+    reassignment_frame$prev_sampleName <- 
+      sites[rownames(reassignment_frame)]$sampleName
   
-  reassignment_frame <- data.frame(
-    row.names = unlist(sapply(1:length(corrected_reads), function(i){
-      names(corrected_reads[[i]])
-    })),
-    "reassign_sampleName" = unlist(sapply(1:length(corrected_reads), function(i){
-      corrected_reads[[i]]$sampleName
-    }))
-  )
-  reassignment_frame$prev_sampleName <- 
-    sites[rownames(reassignment_frame)]$sampleName
-  
-  sites_reassigned <- sites
-  sites_reassigned[rownames(reassignment_frame)]$sampleName <- 
-    reassignment_frame$reassign_sampleName
-  sites_reassigned$clusID <- NULL
+    sites_reassigned <- sites
+    sites_reassigned[rownames(reassignment_frame)]$sampleName <- 
+      reassignment_frame$reassign_sampleName
+    sites_reassigned$clusID <- NULL
+  }else{
+    message("No miss assigned reads found.")
+    sites_reassigned <- NULL
+    reassignment_frame <- NULL
+  }
   output <- list(sites_reassigned, reassignment_frame)
   names(output) <- c("sites_reassigned", "reassignment_frame")
   output
