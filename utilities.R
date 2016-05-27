@@ -67,12 +67,6 @@ assign_sampleName_by_primerID <- function(sites){
   sites_to_correct <- sites[sites$primerID %in% names(two_or_more)]
   if(length(sites_to_correct) > 0){
     sites_to_correct <- group_sites(sites_to_correct)
-  
-    sites_to_correct$clusID <- paste(
-      as.character(sites_to_correct$primerID),
-      clusters(cluster_graph)$membership,
-      sep = ":"
-    )
     sites_to_correct <- split(sites_to_correct, sites_to_correct$clusID)
     sites_to_correct <- sites_to_correct[sapply(sites_to_correct, function(x){
       length(unique(x$sampleName)) >= 2
