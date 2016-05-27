@@ -81,7 +81,7 @@ assign_sampleName_by_primerID <- function(sites){
         sampleName_freq <- table(sites_matching_primerID$sampleName)
         origin <- names(sampleName_freq[sampleName_freq == max(sampleName_freq)])
         modified_reads <- sites_matching_primerID[
-          !sites_matching_primerID$sampleName == origin
+          !sites_matching_primerID$sampleName == origin[1]
           ]
         modified_reads$sampleName <- origin
         modified_reads
