@@ -66,6 +66,8 @@ primerIDs <- lapply(sampleInfo$alias,
                     dataDir = primeDir)
 
 names(allSites) <- names(primerIDs) <- sampleInfo$alias
+allSites <- allSites[sapply(allSites, length) > 0]
+primerIDs <- primerIDs[sapply(primerIDs, length) > 0]
 
 if(exists("allSites")){message("Unique sites loaded.")}
 if(exists("primerIDs")){message("PrimerIDs loaded.")}
