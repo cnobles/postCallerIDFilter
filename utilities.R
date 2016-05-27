@@ -65,13 +65,14 @@ assign_sampleName_by_primerID <- function(sites){
   )
   two_or_more <- two_or_more[sapply(two_or_more, length) >= 2]
   sites_to_correct <- sites[sites$primerID %in% names(two_or_more)]
+  
   if(length(sites_to_correct) > 0){
     sites_to_correct <- group_sites(sites_to_correct)
     sites_to_correct <- split(sites_to_correct, sites_to_correct$clusID)
     sites_to_correct <- sites_to_correct[sapply(sites_to_correct, function(x){
       length(unique(x$sampleName)) >= 2
     })]
-  
+  }
     corrected_reads <- lapply(
       sites_to_correct,
       function(sites_matching_primerID){
@@ -85,6 +86,7 @@ assign_sampleName_by_primerID <- function(sites){
       }
     )
   
+  if(length(sites_to_correct) > 0){  
     reassignment_frame <- data.frame(
       row.names = unlist(sapply(1:length(corrected_reads), function(i){
         names(corrected_reads[[i]])
