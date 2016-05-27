@@ -37,21 +37,18 @@ specimen <- arguments$s
 
 source(paste0(codeDir, "/utilities.R"))
 
-load(paste0(dataDir, "/", specimen, "_prefilReads.RData"))
+load(paste0(dataDir, "/prefilReads_", specimen, ".RData"))
 
 corrected_reads <- assign_sampleName_by_primerID(sites)
 
 corrected_sites <- corrected_reads$sites_reassigned
 reads_corrected <- corrected_reads$reassignment_frame
 
-save(
-  corrected_sites, 
-  file = paste0(dataDir, "/", specimen, "_postfilReads.RData")
-)
+save(corrected_sites, file = paste0(dataDir, "/filReads_", specimen, ".RData"))
 
 write.table(
   reads_corrected,
-  file = paste0(dataDir, "/", specimen, "_reassignTable.tsv"),
-  quote = FALSE,
+  file = paste0(dataDir, "/reassignTable_", specimen, ".tsv"),
+  quote = FALSE
 )
 

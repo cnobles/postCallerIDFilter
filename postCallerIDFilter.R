@@ -97,13 +97,13 @@ spSites <- split(allSites, allSites$specimen)
 
 lapply(1:length(spSites), function(i){
   sites <- spSites[[i]]
-  save(sites, file = paste0(names(spSites[i]), "_prefilReads.RData"))
+  save(sites, file = paste0("prefilReads_", names(spSites[i]), ".RData"))
   })
 
 lapply(names(spSites), function(specimen){
   bsub(jobName=sprintf("BushmanPostCallerProcessing_%s", specimen),
        maxmem=64000,
-       logFile=paste0(specimen, "_output.txt"),
+       logFile=paste0("processLog_", specimen, ".txt"),
        command=paste0("Rscript ", codeDir, "/correct_read_assignment.R ",
                       "-d ", primeDir, "/postCallerIDData ",
                       "-c ", codeDir, " ",
