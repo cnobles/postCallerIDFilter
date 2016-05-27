@@ -83,7 +83,7 @@ assign_sampleName_by_primerID <- function(sites){
         modified_reads <- sites_matching_primerID[
           !sites_matching_primerID$sampleName == origin[1]
           ]
-        modified_reads$sampleName <- origin
+        modified_reads$sampleName <- origin[1]
         modified_reads
       }
     )
