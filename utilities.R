@@ -104,7 +104,7 @@ assign_sampleName_by_primerID <- function(sites){
     sites_reassigned$clusID <- NULL
   }else{
     message("No miss assigned reads found.")
-    sites_reassigned <- NULL
+    sites_reassigned <- sites
     reassignment_frame <- NULL
   }
   output <- list(sites_reassigned, reassignment_frame)
