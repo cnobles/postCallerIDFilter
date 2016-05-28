@@ -20,17 +20,28 @@ load_intSiteCaller_data <- function(sampleName, dataType, dataDir){
   }
 }
 
-group_sites <- function(sites){
-  sites_flank <- flank(sites, -1, start = TRUE)
+assign_groups <- function(sites, start = TRUE){
+  origin_order <- names(sites)
+  sites_flank <- flank(sites, -1, start = start)
   sites_red <- reduce(sites_flank, min.gapwidth = 5L, with.revmap = TRUE)
   revmap <- sites_red$revmap
   groups <- as.character(Rle(
     values = sapply(revmap, "[", 1), 
     lengths = sapply(revmap, length)
   ))
-  order <- unlist(revmap)
-  sites <- sites[order]
-  sites$clusID <- paste(sites$primerID, groups, sep = ":")
+  sites <- sites[unlist(revmap)]
+  sites$clusID <- groups
+  sites <- sites[origin_order]
+  as.numeric(sites$clusID)
+}
+
+group_sites <- function(sites){
+  position_grp <- assign_groups(sites, start = TRUE)
+  breakpoint_grp <- assign_groups(sites, start = FALSE)
+  sites$clusID <- paste(sites$primerID, 
+                        position_grp, 
+                        breakpoint_grp,
+                        sep = ":")
   sites
 }
 
