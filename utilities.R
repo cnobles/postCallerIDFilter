@@ -101,7 +101,7 @@ assign_sampleName_by_primerID <- function(sites){
     )
   
     reassignment_frame <- data.frame(
-      row.names = unlist(sapply(1:length(corrected_reads), function(i){
+      "readID" = unlist(sapply(1:length(corrected_reads), function(i){
         names(corrected_reads[[i]])
       })),
       "reassign_sampleName" = unlist(sapply(1:length(corrected_reads), function(i){

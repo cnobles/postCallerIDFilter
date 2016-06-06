@@ -49,6 +49,8 @@ save(corrected_sites, file = paste0(dataDir, "/filReads_", specimen, ".RData"))
 write.table(
   reads_corrected,
   file = paste0(dataDir, "/reassignTable_", specimen, ".tsv"),
-  quote = FALSE
+  quote = FALSE,
+  sep = "\t",
+  row.names = FALSE
 )
 
