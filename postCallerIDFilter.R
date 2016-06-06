@@ -51,7 +51,11 @@ setwd(paste0(primeDir, "/postCallerIDData"))
 #Load all data needed for analysis
 source(paste0(codeDir, "/utilities.R"))
 sampleInfo <- read.delim(paste0(primeDir, "/sampleInfo.tsv"))
-sampleInfo <- sampleInfo[sampleInfo$refGenome == "hg18",]
+
+if("refGenome" %in% colnames(sampleInfo)){
+  sampleInfo <- sampleInfo[sampleInfo$refGenome == "hg18",]
+}
+
 sampleInfo$specimen <- sapply(strsplit(sampleInfo$alias, "-"), "[[", 1)
 
 message("Loading the following specimens:")
