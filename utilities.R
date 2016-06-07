@@ -112,7 +112,7 @@ assign_sampleName_by_primerID <- function(sites){
       sites[match(reassignment_frame$readID, names(sites))]$sampleName
   
     sites_reassigned <- sites
-    sites_reassigned[rownames(reassignment_frame)]$sampleName <- 
+    sites_reassigned[match(reassignment_frame$readID, names(sites_reassigned))]$sampleName <- 
       reassignment_frame$reassign_sampleName
     sites_reassigned$clusID <- NULL
   }else{
