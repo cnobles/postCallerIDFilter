@@ -69,14 +69,14 @@ bsub <- function(queue="normal", cpus=1, maxmem=NULL, wait=NULL, jobName=NULL, l
 }
 
 assign_sampleName_by_primerID <- function(sites){
-  IDs <- table(sites$primerID)
-  two_or_more <- lapply(
-    names(IDs[IDs >= 2]), 
-    function(x) unique(sites[sites$primerID == x]$sampleName)
-  )
-  names(two_or_more) <- names(IDs[IDs >= 2])
-  two_or_more <- two_or_more[sapply(two_or_more, length) >= 2]
-  sites_to_correct <- sites[sites$primerID %in% names(two_or_more)]
+  two_or_more <- data.frame(
+      "primerID" = sites$primerID,
+      "sampleName" = sites$sampleName) %>%
+    group_by(primerID) %>%
+    summarize(numSampleName = n_distinct(sampleName)) %>%
+    filter(numSampleName >= 2)
+  
+  sites_to_correct <- sites[sites$primerID %in% two_or_more$primerID]
   
   if(length(sites_to_correct) > 0){
     sites_to_correct <- group_sites(sites_to_correct)
