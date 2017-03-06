@@ -70,7 +70,7 @@ bsub <- function(queue="normal", cpus=1, maxmem=NULL, wait=NULL, jobName=NULL, l
 
 assign_sampleName_by_primerID <- function(sites){
   two_or_more <- data.frame(
-      "primerID" = sites$primerID,
+      "primerID" = as.character(sites$primerID),
       "sampleName" = sites$sampleName) %>%
     group_by(primerID) %>%
     summarize(numSampleName = n_distinct(sampleName)) %>%
