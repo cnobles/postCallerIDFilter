@@ -27,7 +27,7 @@ setArguments <- function(){
 }
 
 arguments <- setArguments()
-pander(arguments)
+pandoc.list(arguments)
 
 primeDir <- arguments$d
 codeDir <- arguments$codeDir
@@ -77,7 +77,7 @@ if("refGenome" %in% colnames(sampleInfo)){
 sampleInfo$specimen <- sapply(strsplit(sampleInfo$alias, "-"), "[[", 1)
 
 message("Loading the following specimens:")
-pander(unique(sampleInfo$specimen))
+pandoc.list(unique(sampleInfo$specimen))
 
 allSites <- lapply(sampleInfo$alias, 
                    load_intSiteCaller_data, 
