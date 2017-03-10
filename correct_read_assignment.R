@@ -1,17 +1,6 @@
 options(stringsAsFactors = FALSE)
-#Load required dependancies
-rPackages <- c("plyr", 
-               "dplyr", 
-               "GenomicRanges", 
-               "Biostrings", 
-               "igraph", 
-               "argparse") 
-
-stopifnot(all(sapply(rPackages, 
-                     require, 
-                     character.only=TRUE, 
-                     quietly=TRUE, 
-                     warn.conflicts=FALSE)))
+suppressMessages(library("argparse"))
+suppressMessages(library("pander"))
 
 setArguments <- function(){
   parser <- ArgumentParser(
@@ -29,8 +18,35 @@ setArguments <- function(){
 }
 
 arguments <- setArguments()
-print(arguments)
+pander.list(arguments)
 
+#Load required dependancies
+dependancies <- c("plyr", 
+                  "dplyr", 
+                  "GenomicRanges", 
+                  "Biostrings", 
+                  "igraph",
+                  "devtools") 
+
+null <- suppressMessages(sapply(dependancies, require, 
+                                character.only=TRUE, 
+                                quietly=TRUE, 
+                                warn.conflicts=FALSE))
+dependancies_present <- sapply(dependancies, function(package){
+  package <- paste0("package:", package)
+  logic <- package %in% search()
+})
+
+if(FALSE %in% dependancies_present){
+  df <- data.frame(package = as.character(dependancies), loaded = dependancies_present)
+  pandoc.table(df, style = "grid", caption = "Loaded and Unloaded packages.")
+  stop("\nLoad required packages. Check above for missing dependancies.")
+}else{
+  remove(dependancies, dependancies_present, null)
+  message("Required packages loaded.")
+}
+
+#Assign variables and source
 dataDir <- arguments$d
 codeDir <- arguments$codeDir
 specimen <- arguments$s
