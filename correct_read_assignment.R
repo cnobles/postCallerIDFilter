@@ -41,7 +41,10 @@ dependancies_present <- sapply(dependancies, function(package){
 })
 
 if(FALSE %in% dependancies_present){
-  df <- data.frame(package = as.character(dependancies), loaded = dependancies_present)
+  df <- data.frame(
+    package = as.character(dependancies), 
+    loaded = dependancies_present,
+    row.names = NULL)
   pandoc.table(df, style = "grid", caption = "Loaded and Unloaded packages.")
   stop("\nLoad required packages. Check above for missing dependancies.")
 }else{
