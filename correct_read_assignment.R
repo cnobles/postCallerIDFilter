@@ -18,7 +18,7 @@ setArguments <- function(){
 }
 
 arguments <- setArguments()
-pander.list(arguments)
+pandoc.list(arguments)
 
 #Load required dependancies
 dependancies <- c("plyr", 
