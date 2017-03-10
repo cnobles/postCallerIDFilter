@@ -14,7 +14,7 @@ setArguments <- function(){
   parser <- ArgumentParser(
     description = "Post intSiteCaller primerID filter for unique sites."
     )
-  parser$add_argument("-d", --analysisDir, default = getwd(), 
+  parser$add_argument("-d", "--analysisDir", default = getwd(), 
                       help = "Primary analysis directory.")
   parser$add_argument("-c", "--codeDir", type = "character", nargs=1,
                       default = codeDir,
