@@ -14,7 +14,7 @@ setArguments <- function(){
   parser <- ArgumentParser(
     description = "Post intSiteCaller primerID filter for unique sites."
     )
-  parser$add_argument("-d", default = getwd(), 
+  parser$add_argument("-d", --analysisDir, default = getwd(), 
                       help = "Primary analysis directory.")
   parser$add_argument("-c", "--codeDir", type = "character", nargs=1,
                       default = codeDir,
@@ -27,9 +27,12 @@ setArguments <- function(){
 }
 
 arguments <- setArguments()
-pandoc.list(arguments)
+pandoc.table(data.frame(
+    "Variables" = paste0(names(arguments), ":"), 
+    "Values" = unname(unlist(arguments))),
+  justify = c("right", "left"))
 
-primeDir <- arguments$d
+primeDir <- arguments$analysisDir
 codeDir <- arguments$codeDir
 
 if(!"postCallerIDData" %in% list.files(primeDir)){
