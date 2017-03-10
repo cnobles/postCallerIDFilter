@@ -20,7 +20,7 @@ setArguments <- function(){
                       default = codeDir,
                       help = "Code directory.")
   parser$add_argument("-r", "--ref_genome", type = "character", nargs = 1,
-                      default = "hg38", help = "Reference genome, i.e. hg38)
+                      default = "hg38", help = "Reference genome, i.e. hg38")
   
   arguments <- parser$parse_args()
   arguments
