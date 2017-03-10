@@ -1,18 +1,4 @@
 options(stringsAsFactors = FALSE)
-#Load required dependancies
-rPackages <- c("plyr", 
-               "dplyr", 
-               "GenomicRanges", 
-               "Biostrings", 
-               "igraph", 
-               "argparse",
-               "devtools") 
-
-stopifnot(all(sapply(rPackages, 
-                     require, 
-                     character.only=TRUE, 
-                     quietly=TRUE, 
-                     warn.conflicts=FALSE)))
 
 codeDir <- dirname(
   sub("--file=", 
@@ -22,22 +8,25 @@ codeDir <- dirname(
   )
 
 #Set up and gather commandline arguments
+library("argparse")
 setArguments <- function(){
   parser <- ArgumentParser(
     description = "Post intSiteCaller primerID filter for unique sites."
     )
   parser$add_argument("-d", default = getwd(), 
                       help = "Primary analysis directory.")
-  parser$add_argument("-c", "--codeDir", type="character", nargs=1,
-                      default=codeDir,
-                      help= "Code directory.")
+  parser$add_argument("-c", "--codeDir", type = "character", nargs=1,
+                      default = codeDir,
+                      help = "Code directory.")
+  parser$add_argument("-r", "--ref_genome", type = "character", nargs = 1,
+                      default = "hg38", help = "Reference genome, i.e. hg38)
   
   arguments <- parser$parse_args()
   arguments
 }
 
 arguments <- setArguments()
-print(arguments)
+pander.list(arguments)
 
 primeDir <- arguments$d
 codeDir <- arguments$codeDir
@@ -48,18 +37,46 @@ if(!"postCallerIDData" %in% list.files(primeDir)){
 
 setwd(paste0(primeDir, "/postCallerIDData"))
 
+#Load required dependancies
+dependancies <- c("plyr", 
+                  "dplyr", 
+                  "GenomicRanges", 
+                  "Biostrings", 
+                  "igraph",
+                  "pander",
+                  "devtools") 
+
+null <- suppressMessages(sapply(dependancies, require, 
+                                character.only=TRUE, 
+                                quietly=TRUE, 
+                                warn.conflicts=FALSE))
+
+dependancies_present <- sapply(dependancies, function(package){
+  package <- paste0("package:", package)
+  logic <- package %in% search()
+})
+
+if(FALSE %in% dependancies_present){
+  df <- data.frame(package = as.character(dependancies), loaded = dependancies_present)
+  pandoc.table(df, style = "grid", caption = "Loaded and Unloaded packages.")
+  stop("\nLoad required packages. Check above for missing dependancies.")
+}else{
+  remove(dependancies, dependancies_present, null)
+  message("Required packages loaded.")
+}
+
 #Load all data needed for analysis
 source(paste0(codeDir, "/utilities.R"))
 sampleInfo <- read.delim(paste0(primeDir, "/sampleInfo.tsv"))
 
 if("refGenome" %in% colnames(sampleInfo)){
-  sampleInfo <- sampleInfo[sampleInfo$refGenome == "hg18",]
+  sampleInfo <- sampleInfo[sampleInfo$refGenome == arguments$ref_genome,]
 }
 
 sampleInfo$specimen <- sapply(strsplit(sampleInfo$alias, "-"), "[[", 1)
 
 message("Loading the following specimens:")
-print(unique(sampleInfo$specimen))
+pander.list(unique(sampleInfo$specimen))
 
 allSites <- lapply(sampleInfo$alias, 
                    load_intSiteCaller_data, 
