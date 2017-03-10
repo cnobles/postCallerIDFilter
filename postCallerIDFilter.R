@@ -1,4 +1,6 @@
 options(stringsAsFactors = FALSE)
+suppressMessages(library("argparse"))
+suppressMessages(library("pander"))
 
 codeDir <- dirname(
   sub("--file=", 
@@ -8,7 +10,6 @@ codeDir <- dirname(
   )
 
 #Set up and gather commandline arguments
-library("argparse")
 setArguments <- function(){
   parser <- ArgumentParser(
     description = "Post intSiteCaller primerID filter for unique sites."
