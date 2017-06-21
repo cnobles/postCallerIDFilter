@@ -19,7 +19,7 @@ setArguments <- function(){
   parser$add_argument("-c", "--codeDir", type = "character", nargs=1,
                       default = codeDir,
                       help = "Code directory.")
-  parser$add_argument("-r", "--ref_genome", type = "character", nargs = 1,
+  parser$add_argument("-r", "--refGenome", type = "character", nargs = 1,
                       default = "hg38", help = "Reference genome, i.e. hg38")
   
   arguments <- parser$parse_args()
@@ -42,34 +42,16 @@ if(!"postCallerIDData" %in% list.files(primeDir)){
 setwd(paste0(primeDir, "/postCallerIDData"))
 
 #Load required dependancies
-dependancies <- c("plyr", 
-                  "dplyr", 
-                  "GenomicRanges", 
-                  "Biostrings", 
-                  "igraph",
-                  "pander",
-                  "devtools") 
+addDependancies <- c("dplyr", "GenomicRanges", "Biostrings", "igraph") 
 
-null <- suppressMessages(sapply(dependancies, require, 
-                                character.only=TRUE, 
-                                quietly=TRUE, 
-                                warn.conflicts=FALSE))
-
-dependancies_present <- sapply(dependancies, function(package){
-  package <- paste0("package:", package)
-  logic <- package %in% search()
-})
-
-if(FALSE %in% dependancies_present){
-  df <- data.frame(
-    package = as.character(dependancies), 
-    loaded = dependancies_present,
-    row.names = NULL)
-  pandoc.table(df, style = "grid", caption = "Loaded and Unloaded packages.")
-  stop("\nLoad required packages. Check above for missing dependancies.")
+addDependsLoaded <- suppressMessages(
+  sapply(add_dependencies, require, character.only = TRUE))
+if(!all(addDependsLoaded)){
+  pandoc.table(addDependsLoaded, style = "grid")
+  stop("Check dependancies.")
 }else{
-  remove(dependancies, dependancies_present, null)
-  message("Required packages loaded.")
+  remove(addDependencies, addDependsLoaded, null)
+  pandoc.strong("Required packages loaded.")
 }
 
 #Load all data needed for analysis
@@ -85,21 +67,18 @@ sampleInfo$specimen <- sapply(strsplit(sampleInfo$alias, "-"), "[[", 1)
 message("Loading the following specimens:")
 pandoc.list(unique(sampleInfo$specimen))
 
-allSites <- lapply(sampleInfo$alias, 
-                   load_intSiteCaller_data, 
-                   dataType = "allSites", 
-                   dataDir = primeDir)
-primerIDs <- lapply(sampleInfo$alias,
-                    load_intSiteCaller_data, 
-                    dataType = "primerIDData", 
-                    dataDir = primeDir)
+allSites <- lapply(
+  sampleInfo$alias, load_intSiteCaller_data, dataType = "allSites", dataDir = primeDir)
+
+primerIDs <- lapply(
+  sampleInfo$alias, load_intSiteCaller_data, dataType = "primerIDData", dataDir = primeDir)
 
 names(allSites) <- names(primerIDs) <- sampleInfo$alias
 allSites <- allSites[sapply(allSites, length) > 0]
 primerIDs <- primerIDs[sapply(primerIDs, length) > 0]
 
-if(exists("allSites")){message("Unique sites loaded.")}
-if(exists("primerIDs")){message("PrimerIDs loaded.")}
+if(exists("allSites")){pandoc.strong("Unique sites loaded.")}
+if(exists("primerIDs")){pandoc.strong("PrimerIDs loaded.")}
 
 #Join primerIDs to read alignments
 allSites <- do.call(c, lapply(1:length(allSites), function(i){
