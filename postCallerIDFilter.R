@@ -21,19 +21,25 @@ setArguments <- function(){
                       help = "Code directory.")
   parser$add_argument("-r", "--refGenome", type = "character", nargs = 1,
                       default = "hg38", help = "Reference genome, i.e. hg38")
+  parser$add_argument("-p", "--process", type = "character", nargs=1,
+                      default = "r-parallel",
+                      help = "Parallel processing method, options include: serial, r-parallel, bsub.")
+  parser$add_argument("--cores", type = "integer", nargs = 1,
+                      default = 0, help = "Specify number of cores to use during parallel processing with r-parallel.")
+  
   
   arguments <- parser$parse_args()
   arguments
 }
 
-arguments <- setArguments()
+args <- setArguments()
 pandoc.table(data.frame(
-    "Variables" = paste0(names(arguments), ":"), 
-    "Values" = unname(unlist(arguments))),
+    "Variables" = paste0(names(args), ":"), 
+    "Values" = unname(unlist(args))),
   justify = c("right", "left"))
 
-primeDir <- arguments$analysisDir
-codeDir <- arguments$codeDir
+primeDir <- args$analysisDir
+codeDir <- args$codeDir
 
 if(!"postCallerIDData" %in% list.files(primeDir)){
   system("mkdir postCallerIDData")
@@ -103,18 +109,45 @@ message("PrimerIDs merged to alignment information.")
 #Split up data by specimen, identify crossover primerIDs
 spSites <- split(allSites, allSites$specimen)
 
-lapply(1:length(spSites), function(i){
+null <- lapply(1:length(spSites), function(i){
   sites <- spSites[[i]]
   save(sites, file = paste0("prefilReads_", names(spSites[i]), ".RData"))
   })
 
-lapply(names(spSites), function(specimen){
-  bsub(jobName=sprintf("BushmanPostCallerProcessing_%s", specimen),
-       maxmem=12000,
-       logFile=paste0("processLog_", specimen, ".txt"),
-       command=paste0("Rscript ", codeDir, "/correct_read_assignment.R ",
-                      "-d ", primeDir, "/postCallerIDData ",
-                      "-c ", codeDir, " ",
-                      "-s ", specimen)
-  )
-})
+if(args$processing == "bsub"){
+  null <- lapply(names(spSites), function(specimen){
+    bsub(jobName=sprintf("BushmanPostCallerProcessing_%s", specimen),
+         maxmem=12000,
+         logFile=paste0("processLog_", specimen, ".txt"),
+         command=paste0("Rscript ", codeDir, "/correct_read_assignment.R ",
+                        "-d ", primeDir, "/postCallerIDData ",
+                        "-c ", codeDir, " ",
+                        "-s ", specimen))
+  })
+}else if(args$processing == "r-parallel"){
+  stopifnot(require("parallel"))
+  
+  buster <- makeCluster(args$cores)
+  
+  clusterExport(
+    buster,
+    varlist = list("args"))
+  
+  null <- parLapply(buster, names(spSites), function(specimen){
+    library(stringr)
+    path <- sub('\\/$', '', path)
+    outputDir <- stringr::str_match(path, '([^\\/]+)$')[2]
+    comm <- paste0('Rscript ', args$codeDir, '/correct_read_assignment.R -d ', args$primeDir, ' -c ',
+                   args$codeDir, ' -r 'args$refGenome', -s ', specimen, ' -o ', outputPath, '/', outputDir)
+  
+    if (! dir.exists(paste0(outputPath, '/', outputDir)))  dir.create(paste0(outputPath, '/', outputDir), showWarnings = FALSE)
+    cat(comm, '\n', file=paste0(outputPath, '/', outputDir, '/command.txt')) 
+    comm.out <- system(comm, intern = TRUE)
+    cat(paste0(comm.out, collapse='\n'), file=paste0(outputPath, '/', outputDir, '/command.output.txt'))
+  
+  })
+  stopCluster(buster)
+  
+}else if(args$processing == "serial"){
+  stop("Serial processing currently in development."
+}
