@@ -16,6 +16,8 @@ setArguments <- function(){
     )
   parser$add_argument("-d", "--analysisDir", default = getwd(), 
                       help = "Primary analysis directory.")
+  parser$add_argument("-o", "--outputDir", default = "postCallerIDData",
+                      help = "Output directory, within the primary analysis directory. Default 'postCallerIDData'.")
   parser$add_argument("-c", "--codeDir", type = "character", nargs=1,
                       default = codeDir,
                       help = "Code directory.")
@@ -39,13 +41,14 @@ pandoc.table(data.frame(
   justify = c("right", "left"))
 
 primeDir <- args$analysisDir
+outputDir <- args$outputDir
 codeDir <- args$codeDir
 
-if(!"postCallerIDData" %in% list.files(primeDir)){
-  system("mkdir postCallerIDData")
+if(!outputDir %in% list.files(primeDir)){
+  system(paste0("mkdir ", outputDir))
 }
 
-setwd(paste0(primeDir, "/postCallerIDData"))
+setwd(paste0(primeDir, "/", outputDir))
 
 #Load required dependancies
 addDependancies <- c("dplyr", "GenomicRanges", "Biostrings", "igraph") 
@@ -116,13 +119,13 @@ null <- lapply(1:length(spSites), function(i){
 
 if(args$processing == "bsub"){
   null <- lapply(names(spSites), function(specimen){
-    bsub(jobName=sprintf("BushmanPostCallerProcessing_%s", specimen),
-         maxmem=12000,
-         logFile=paste0("processLog_", specimen, ".txt"),
-         command=paste0("Rscript ", codeDir, "/correct_read_assignment.R ",
-                        "-d ", primeDir, "/postCallerIDData ",
-                        "-c ", codeDir, " ",
-                        "-s ", specimen))
+    bsub(jobName = sprintf("BushmanPostCallerProcessing_%s", specimen),
+         maxmem = 12000,
+         logFile = paste0("processLog_", specimen, ".txt"),
+         command = paste0("Rscript ", codeDir, "/correct_read_assignment.R ",
+                          "-d ", primeDir, "/", args$outputDir, " ",
+                          "-c ", codeDir, " ",
+                          "-s ", specimen))
   })
 }else if(args$processing == "r-parallel"){
   stopifnot(require("parallel"))
@@ -135,16 +138,14 @@ if(args$processing == "bsub"){
   
   null <- parLapply(buster, names(spSites), function(specimen){
     library(stringr)
-    path <- sub('\\/$', '', path)
-    outputDir <- stringr::str_match(path, '([^\\/]+)$')[2]
-    comm <- paste0('Rscript ', args$codeDir, '/correct_read_assignment.R -d ', args$primeDir, ' -c ',
-                   args$codeDir, ' -r 'args$refGenome', -s ', specimen, ' -o ', outputPath, '/', outputDir)
-  
-    if (! dir.exists(paste0(outputPath, '/', outputDir)))  dir.create(paste0(outputPath, '/', outputDir), showWarnings = FALSE)
-    cat(comm, '\n', file=paste0(outputPath, '/', outputDir, '/command.txt')) 
-    comm.out <- system(comm, intern = TRUE)
-    cat(paste0(comm.out, collapse='\n'), file=paste0(outputPath, '/', outputDir, '/command.output.txt'))
-  
+    
+    cmd <- sprintf('Rscript %1$s/correct_read_assignment.R -d %2$s/%3$s -c %1$s -r %4$s -s %5$s',
+                   args$codeDir, args$analysisDir, args$outputDir, args$refGenome, specimen)
+    
+    pander(sprintf("System call for processing: %1$s \n", specimen))
+    pander(cmd)
+    cmdOut <- system(cmd, intern = TRUE)
+    pander(paste0(cmdOut, collapse = '\n'))
   })
   stopCluster(buster)
   
