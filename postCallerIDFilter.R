@@ -16,60 +16,60 @@ setArguments <- function(){
     )
   parser$add_argument("-d", "--analysisDir", default = getwd(), 
                       help = "Primary analysis directory.")
+  parser$add_argument("-o", "--outputDir", default = "postCallerIDData",
+                      help = "Output directory, within the primary analysis directory. Default 'postCallerIDData'.")
   parser$add_argument("-c", "--codeDir", type = "character", nargs=1,
                       default = codeDir,
                       help = "Code directory.")
-  parser$add_argument("-r", "--ref_genome", type = "character", nargs = 1,
+  parser$add_argument("-r", "--refGenome", type = "character", nargs = 1,
                       default = "hg38", help = "Reference genome, i.e. hg38")
+  parser$add_argument("-p", "--process", type = "character", nargs=1,
+                      default = "r-parallel",
+                      help = "Parallel processing method, options include: serial, r-parallel, bsub.")
+  parser$add_argument("--cores", type = "integer", nargs = 1,
+                      default = 1, help = "Specify number of cores to use during parallel processing with r-parallel, default is 1.")
+  
   
   arguments <- parser$parse_args()
   arguments
 }
 
-arguments <- setArguments()
+args <- setArguments()
+pander("Post intSiteCaller primerID filtering\n")
+pander(paste0("Date: ", Sys.Date(), "\n"))
+
+pandoc.title("\nInput variables:")
 pandoc.table(data.frame(
-    "Variables" = paste0(names(arguments), ":"), 
-    "Values" = unname(unlist(arguments))),
-  justify = c("right", "left"))
+    "Variables" = paste0(names(args), ":"), 
+    "Values" = unname(unlist(args))),
+  justify = c("right", "left"),
+  style = "simple")
 
-primeDir <- arguments$analysisDir
-codeDir <- arguments$codeDir
-
-if(!"postCallerIDData" %in% list.files(primeDir)){
-  system("mkdir postCallerIDData")
+primeDir <- args$analysisDir
+outputDir <- args$outputDir
+codeDir <- args$codeDir
+if(!args$process %in% c("bsub", "r-parallel", "serial")){
+  stop("Parallel processing method must be one of: 'bsub', 'r-parallel', or 'serial'.")
 }
 
-setwd(paste0(primeDir, "/postCallerIDData"))
+
+if(!outputDir %in% list.files(primeDir)){
+  system(paste0("mkdir ", outputDir))
+}
+
+setwd(paste0(primeDir, "/", outputDir))
 
 #Load required dependancies
-dependancies <- c("plyr", 
-                  "dplyr", 
-                  "GenomicRanges", 
-                  "Biostrings", 
-                  "igraph",
-                  "pander",
-                  "devtools") 
+addDependencies <- c("dplyr", "GenomicRanges", "Biostrings", "igraph") 
 
-null <- suppressMessages(sapply(dependancies, require, 
-                                character.only=TRUE, 
-                                quietly=TRUE, 
-                                warn.conflicts=FALSE))
-
-dependancies_present <- sapply(dependancies, function(package){
-  package <- paste0("package:", package)
-  logic <- package %in% search()
-})
-
-if(FALSE %in% dependancies_present){
-  df <- data.frame(
-    package = as.character(dependancies), 
-    loaded = dependancies_present,
-    row.names = NULL)
-  pandoc.table(df, style = "grid", caption = "Loaded and Unloaded packages.")
-  stop("\nLoad required packages. Check above for missing dependancies.")
+addDependsLoaded <- suppressMessages(
+  sapply(addDependencies, require, character.only = TRUE))
+if(!all(addDependsLoaded)){
+  pandoc.table(addDependsLoaded, style = "simple")
+  stop("Check dependancies.")
 }else{
-  remove(dependancies, dependancies_present, null)
-  message("Required packages loaded.")
+  remove(addDependencies, addDependsLoaded)
+  pander("Required packages loaded.")
 }
 
 #Load all data needed for analysis
@@ -77,29 +77,37 @@ source(paste0(codeDir, "/utilities.R"))
 sampleInfo <- read.delim(paste0(primeDir, "/sampleInfo.tsv"))
 
 if("refGenome" %in% colnames(sampleInfo)){
-  sampleInfo <- sampleInfo[sampleInfo$refGenome == arguments$ref_genome,]
+  sampleInfo <- sampleInfo[sampleInfo$refGenome == args$refGenome,]
 }
 
 sampleInfo$specimen <- sapply(strsplit(sampleInfo$alias, "-"), "[[", 1)
 
-message("Loading the following specimens:")
-pandoc.list(unique(sampleInfo$specimen))
+message("\nLoading the following specimens:")
+pandoc.table(
+  data.frame("Specimens" = unique(sampleInfo$specimen)), 
+  style = "simple",
+  justify = "left")
 
-allSites <- lapply(sampleInfo$alias, 
-                   load_intSiteCaller_data, 
-                   dataType = "allSites", 
-                   dataDir = primeDir)
-primerIDs <- lapply(sampleInfo$alias,
-                    load_intSiteCaller_data, 
-                    dataType = "primerIDData", 
-                    dataDir = primeDir)
+allSites <- lapply(
+  sampleInfo$alias, 
+  load_intSiteCaller_data, 
+  dataType = "allSites", 
+  dataDir = primeDir)
+
+primerIDs <- lapply(
+  sampleInfo$alias, 
+  load_intSiteCaller_data, 
+  dataType = "primerIDData", 
+  dataDir = primeDir)
 
 names(allSites) <- names(primerIDs) <- sampleInfo$alias
-allSites <- allSites[sapply(allSites, length) > 0]
+allSites <- allSites[
+  sapply(allSites, length) > 0 & sapply(allSites, class) == "GRanges"]
 primerIDs <- primerIDs[sapply(primerIDs, length) > 0]
 
-if(exists("allSites")){message("Unique sites loaded.")}
-if(exists("primerIDs")){message("PrimerIDs loaded.")}
+if(exists("allSites")){pander("Unique sites loaded.\n")}
+if(sum(sapply(allSites, length))  == 0) stop("No unique sites found.")
+if(exists("primerIDs")){pander("PrimerIDs loaded.\n")}
 
 #Join primerIDs to read alignments
 allSites <- do.call(c, lapply(1:length(allSites), function(i){
@@ -119,23 +127,52 @@ allSites$primerID <- primerIDs[names(allSites)]
 
 mcols(allSites) <- mcols(allSites)[, c("specimen", "sampleName", "primerID")]
 
-message("PrimerIDs merged to alignment information.")
+pander("PrimerIDs merged to alignment information.\n")
 
 #Split up data by specimen, identify crossover primerIDs
 spSites <- split(allSites, allSites$specimen)
 
-lapply(1:length(spSites), function(i){
+null <- lapply(1:length(spSites), function(i){
   sites <- spSites[[i]]
   save(sites, file = paste0("prefilReads_", names(spSites[i]), ".RData"))
   })
 
-lapply(names(spSites), function(specimen){
-  bsub(jobName=sprintf("BushmanPostCallerProcessing_%s", specimen),
-       maxmem=12000,
-       logFile=paste0("processLog_", specimen, ".txt"),
-       command=paste0("Rscript ", codeDir, "/correct_read_assignment.R ",
-                      "-d ", primeDir, "/postCallerIDData ",
-                      "-c ", codeDir, " ",
-                      "-s ", specimen)
-  )
-})
+if(args$process == "bsub"){
+  null <- lapply(names(spSites), function(specimen){
+    bsub(jobName = sprintf("BushmanPostCallerProcessing_%s", specimen),
+         maxmem = 12000,
+         logFile = paste0("processLog_", specimen, ".txt"),
+         command = paste0("Rscript ", codeDir, "/correct_read_assignment.R ",
+                          "-d ", primeDir, "/", args$outputDir, " ",
+                          "-c ", codeDir, " ",
+                          "-s ", specimen))
+  })
+}else if(args$process == "r-parallel"){
+  stopifnot(require("parallel"))
+  
+  buster <- makeCluster(args$cores)
+  
+  clusterExport(
+    buster,
+    varlist = list("args"))
+  
+  null <- parLapply(buster, names(spSites), function(specimen){
+    library(stringr)
+    library(pander)    
+
+    cmd <- sprintf('Rscript %1$s/correct_read_assignment.R -d %2$s/%3$s -c %1$s -s %4$s',
+                   args$codeDir, args$analysisDir, args$outputDir, specimen)
+    
+    pander(sprintf("System call for processing: %1$s \n", specimen))
+    pander(cmd)
+    cmdOut <- system(cmd, intern = TRUE)
+    pander(paste0(cmdOut, collapse = '\n'))
+  })
+  stopCluster(buster)
+  
+}else if(args$process == "serial"){
+  stop("Serial processing currently in development.")
+}
+
+pander("Script completed.")
+q()
