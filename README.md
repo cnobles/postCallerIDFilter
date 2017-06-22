@@ -7,6 +7,8 @@ Rscript path/to/postCallerIDFilter.R
 Rscript path/to/postCallerIDFilter.R -d path/to/primaryAnalysisDirectory
 Rscript path/to/postCallerIDFilter.R -c path/to/codeDirectory
 Rscript path/to/postCallerIDFilter.R -r hg38
+Rscript path/to/postCallerIDFilter.R -p r-parallel --cores 10
+Rscript path/to/postCallerIDFilter.R -p bsub
 ```
 
 ## Arguments
