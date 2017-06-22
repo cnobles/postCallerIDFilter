@@ -27,7 +27,7 @@ setArguments <- function(){
                       default = "r-parallel",
                       help = "Parallel processing method, options include: serial, r-parallel, bsub.")
   parser$add_argument("--cores", type = "integer", nargs = 1,
-                      default = 0, help = "Specify number of cores to use during parallel processing with r-parallel.")
+                      default = 1, help = "Specify number of cores to use during parallel processing with r-parallel, default is 1.")
   
   
   arguments <- parser$parse_args()
