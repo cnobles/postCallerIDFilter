@@ -35,14 +35,23 @@ setArguments <- function(){
 }
 
 args <- setArguments()
+pander("Post intSiteCaller primerID filtering\n")
+pander(paste0("Date: ", Sys.Date(), "\n"))
+
+pandoc.title("\nInput variables:")
 pandoc.table(data.frame(
     "Variables" = paste0(names(args), ":"), 
     "Values" = unname(unlist(args))),
-  justify = c("right", "left"))
+  justify = c("right", "left"),
+  style = "simple")
 
 primeDir <- args$analysisDir
 outputDir <- args$outputDir
 codeDir <- args$codeDir
+if(!args$process %in% c("bsub", "r-parallel", "serial")){
+  stop("Parallel processing method must be one of: 'bsub', 'r-parallel', or 'serial'.")
+}
+
 
 if(!outputDir %in% list.files(primeDir)){
   system(paste0("mkdir ", outputDir))
@@ -51,16 +60,16 @@ if(!outputDir %in% list.files(primeDir)){
 setwd(paste0(primeDir, "/", outputDir))
 
 #Load required dependancies
-addDependancies <- c("dplyr", "GenomicRanges", "Biostrings", "igraph") 
+addDependencies <- c("dplyr", "GenomicRanges", "Biostrings", "igraph") 
 
 addDependsLoaded <- suppressMessages(
-  sapply(add_dependencies, require, character.only = TRUE))
+  sapply(addDependencies, require, character.only = TRUE))
 if(!all(addDependsLoaded)){
-  pandoc.table(addDependsLoaded, style = "grid")
+  pandoc.table(addDependsLoaded, style = "simple")
   stop("Check dependancies.")
 }else{
-  remove(addDependencies, addDependsLoaded, null)
-  pandoc.strong("Required packages loaded.")
+  remove(addDependencies, addDependsLoaded)
+  pander("Required packages loaded.")
 }
 
 #Load all data needed for analysis
@@ -68,26 +77,37 @@ source(paste0(codeDir, "/utilities.R"))
 sampleInfo <- read.delim(paste0(primeDir, "/sampleInfo.tsv"))
 
 if("refGenome" %in% colnames(sampleInfo)){
-  sampleInfo <- sampleInfo[sampleInfo$refGenome == arguments$ref_genome,]
+  sampleInfo <- sampleInfo[sampleInfo$refGenome == args$refGenome,]
 }
 
 sampleInfo$specimen <- sapply(strsplit(sampleInfo$alias, "-"), "[[", 1)
 
-message("Loading the following specimens:")
-pandoc.list(unique(sampleInfo$specimen))
+message("\nLoading the following specimens:")
+pandoc.table(
+  data.frame("Specimens" = unique(sampleInfo$specimen)), 
+  style = "simple",
+  justify = "left")
 
 allSites <- lapply(
-  sampleInfo$alias, load_intSiteCaller_data, dataType = "allSites", dataDir = primeDir)
+  sampleInfo$alias, 
+  load_intSiteCaller_data, 
+  dataType = "allSites", 
+  dataDir = primeDir)
 
 primerIDs <- lapply(
-  sampleInfo$alias, load_intSiteCaller_data, dataType = "primerIDData", dataDir = primeDir)
+  sampleInfo$alias, 
+  load_intSiteCaller_data, 
+  dataType = "primerIDData", 
+  dataDir = primeDir)
 
 names(allSites) <- names(primerIDs) <- sampleInfo$alias
-allSites <- allSites[sapply(allSites, length) > 0]
+allSites <- allSites[
+  sapply(allSites, length) > 0 & sapply(allSites, class) == "GRanges"]
 primerIDs <- primerIDs[sapply(primerIDs, length) > 0]
 
-if(exists("allSites")){pandoc.strong("Unique sites loaded.")}
-if(exists("primerIDs")){pandoc.strong("PrimerIDs loaded.")}
+if(exists("allSites")){pander("Unique sites loaded.\n")}
+if(sum(sapply(allSites, length))  == 0) stop("No unique sites found.")
+if(exists("primerIDs")){pander("PrimerIDs loaded.\n")}
 
 #Join primerIDs to read alignments
 allSites <- do.call(c, lapply(1:length(allSites), function(i){
@@ -107,7 +127,7 @@ allSites$primerID <- primerIDs[names(allSites)]
 
 mcols(allSites) <- mcols(allSites)[, c("specimen", "sampleName", "primerID")]
 
-message("PrimerIDs merged to alignment information.")
+pander("PrimerIDs merged to alignment information.\n")
 
 #Split up data by specimen, identify crossover primerIDs
 spSites <- split(allSites, allSites$specimen)
@@ -117,7 +137,7 @@ null <- lapply(1:length(spSites), function(i){
   save(sites, file = paste0("prefilReads_", names(spSites[i]), ".RData"))
   })
 
-if(args$processing == "bsub"){
+if(args$process == "bsub"){
   null <- lapply(names(spSites), function(specimen){
     bsub(jobName = sprintf("BushmanPostCallerProcessing_%s", specimen),
          maxmem = 12000,
@@ -127,7 +147,7 @@ if(args$processing == "bsub"){
                           "-c ", codeDir, " ",
                           "-s ", specimen))
   })
-}else if(args$processing == "r-parallel"){
+}else if(args$process == "r-parallel"){
   stopifnot(require("parallel"))
   
   buster <- makeCluster(args$cores)
@@ -138,9 +158,10 @@ if(args$processing == "bsub"){
   
   null <- parLapply(buster, names(spSites), function(specimen){
     library(stringr)
-    
-    cmd <- sprintf('Rscript %1$s/correct_read_assignment.R -d %2$s/%3$s -c %1$s -r %4$s -s %5$s',
-                   args$codeDir, args$analysisDir, args$outputDir, args$refGenome, specimen)
+    library(pander)    
+
+    cmd <- sprintf('Rscript %1$s/correct_read_assignment.R -d %2$s/%3$s -c %1$s -s %4$s',
+                   args$codeDir, args$analysisDir, args$outputDir, specimen)
     
     pander(sprintf("System call for processing: %1$s \n", specimen))
     pander(cmd)
@@ -149,6 +170,9 @@ if(args$processing == "bsub"){
   })
   stopCluster(buster)
   
-}else if(args$processing == "serial"){
-  stop("Serial processing currently in development."
+}else if(args$process == "serial"){
+  stop("Serial processing currently in development.")
 }
+
+pander("Script completed.")
+q()
