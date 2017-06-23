@@ -15,9 +15,8 @@ setArguments <- function(){
     description = "Post intSiteCaller primerID filter for unique sites."
     )
   parser$add_argument("-d", "--analysisDir", default = getwd(), 
-                      help = "Primary analysis directory.")
-  parser$add_argument("-o", "--outputDir", default = "postCallerIDData",
-                      help = "Output directory, within the primary analysis directory. Default 'postCallerIDData'.")
+                      help = "Primary analysis directory path.")
+  parser$add_argument("-o", "--outputDir", help = "Output directory path.")
   parser$add_argument("-c", "--codeDir", type = "character", nargs=1,
                       default = codeDir,
                       help = "Code directory.")
@@ -53,14 +52,12 @@ if(!args$process %in% c("bsub", "r-parallel", "serial")){
 }
 
 
-if(!outputDir %in% list.files(primeDir)){
+if(!dir.exists(outputDir)){
   system(paste0("mkdir ", outputDir))
 }
 
-setwd(paste0(primeDir, "/", outputDir))
-
 #Load required dependancies
-addDependencies <- c("dplyr", "GenomicRanges", "Biostrings", "igraph") 
+addDependencies <- c("dplyr", "GenomicRanges", "Biostrings", "igraph", "stringr") 
 
 addDependsLoaded <- suppressMessages(
   sapply(addDependencies, require, character.only = TRUE))
@@ -134,7 +131,7 @@ spSites <- split(allSites, allSites$specimen)
 
 null <- lapply(1:length(spSites), function(i){
   sites <- spSites[[i]]
-  save(sites, file = paste0("prefilReads_", names(spSites[i]), ".RData"))
+  save(sites, file = paste0(outputDir,"/prefilReads_", names(spSites[i]), ".RData"))
   })
 
 if(args$process == "bsub"){
@@ -143,7 +140,7 @@ if(args$process == "bsub"){
          maxmem = 12000,
          logFile = paste0("processLog_", specimen, ".txt"),
          command = paste0("Rscript ", codeDir, "/correct_read_assignment.R ",
-                          "-d ", primeDir, "/", args$outputDir, " ",
+                          "-d ", outputDir, " ",
                           "-c ", codeDir, " ",
                           "-s ", specimen))
   })
@@ -160,8 +157,8 @@ if(args$process == "bsub"){
     library(stringr)
     library(pander)    
 
-    cmd <- sprintf('Rscript %1$s/correct_read_assignment.R -d %2$s/%3$s -c %1$s -s %4$s',
-                   args$codeDir, args$analysisDir, args$outputDir, specimen)
+    cmd <- sprintf('Rscript %1$s/correct_read_assignment.R -d %2$s -c %1$s -s %3$s',
+                   args$codeDir, args$outputDir, specimen)
     
     pander(sprintf("System call for processing: %1$s \n", specimen))
     pander(cmd)
